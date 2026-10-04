@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum Role {
+  STUDENT
+  SUPERVISOR
+  ADMIN
+}
+enum PlacementStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+enum ReportStatus {
+  SUBMITTED
+  REVIEWED
+}
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  studentProfile    StudentProfile?
+  supervisorProfile SupervisorProfile?
+  reviewedReports   WeeklyReport[] @relation("ReportReviewer")
+  @@index([role])
+  @@index([email])
+}
+model StudentProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  studentNumber String   @unique
+  programme     String
+  department    String
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placements Placement[]
+  reports    WeeklyReport[]
+  @@index([studentNumber])
+  @@index([department])
+}
+model SupervisorProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  department   String
+  organization String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placements Placement[]
+  @@index([department])
+}
+model Track {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  placements Placement[]
+}
+model Placement {
+  id           String          @id @default(uuid())
+  studentId    String
+  supervisorId String
+  trackId      String
+  startDate    DateTime
+  endDate      DateTime
+  status       PlacementStatus @default(PLANNED)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  student    StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  supervisor SupervisorProfile @relation(fields: [supervisorId], references: [id], onDelete: Restrict)
+  track      Track             @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  reports    WeeklyReport[]
+  @@index([studentId])
+  @@index([supervisorId])
+  @@index([trackId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+model WeeklyReport {
+  id            String       @id @default(uuid())
+  studentId     String
+  placementId   String
+  weekNumber    Int
+  weekStart     DateTime
+  weekEnd       DateTime
+  activities    String
+  skillsLearned String
+  challenges    String
+  status        ReportStatus @default(SUBMITTED)
+  feedback      String?
+  reviewedAt    DateTime?
+  reviewedById  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  student    StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  placement  Placement      @relation(fields: [placementId], references: [id], onDelete: Cascade)
+  reviewedBy User?          @relation("ReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  @@unique([studentId, weekNumber])
+  @@index([placementId])
+  @@index([studentId])
+  @@index([status])
+  @@index([reviewedById])
+}
